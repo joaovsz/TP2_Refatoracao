@@ -7,9 +7,6 @@ import org.sammancoaching.dependencies.Project;
 
 public class Pipeline {
     private static final String SUCCESS = "success";
-    private static final String TESTS_FAILED_SUMMARY = "Tests failed";
-    private static final String DEPLOYMENT_FAILED_SUMMARY = "Deployment failed";
-    private static final String DEPLOYMENT_SUCCESS_SUMMARY = "Deployment completed successfully";
 
     private final Config config;
     private final Emailer emailer;
@@ -24,7 +21,8 @@ public class Pipeline {
     public void run(Project project) {
         boolean testsPassed = executeTests(project);
         boolean deploySuccessful = deployProject(project, testsPassed);
-        sendExecutionSummary(testsPassed, deploySuccessful);
+        PipelineExecutionResult executionResult = new PipelineExecutionResult(testsPassed, deploySuccessful);
+        sendExecutionSummary(executionResult);
     }
 
     private boolean executeTests(Project project) {
@@ -60,30 +58,17 @@ public class Pipeline {
         return false;
     }
 
-    private void sendExecutionSummary(boolean testsPassed, boolean deploySuccessful) {
+    private void sendExecutionSummary(PipelineExecutionResult executionResult) {
         if (!config.sendEmailSummary()) {
             log.info("Email disabled");
             return;
         }
 
         log.info("Sending email");
-        String summaryMessage = determineSummaryMessage(testsPassed, deploySuccessful);
-        emailer.send(summaryMessage);
+        emailer.send(executionResult.emailSummary());
     }
 
     private boolean isSuccessful(String result) {
         return SUCCESS.equals(result);
-    }
-
-    private String determineSummaryMessage(boolean testsPassed, boolean deploySuccessful) {
-        if (!testsPassed) {
-            return TESTS_FAILED_SUMMARY;
-        }
-
-        if (!deploySuccessful) {
-            return DEPLOYMENT_FAILED_SUMMARY;
-        }
-
-        return DEPLOYMENT_SUCCESS_SUMMARY;
     }
 }

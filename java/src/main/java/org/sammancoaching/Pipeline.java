@@ -6,6 +6,11 @@ import org.sammancoaching.dependencies.Logger;
 import org.sammancoaching.dependencies.Project;
 
 public class Pipeline {
+    private static final String SUCCESS = "success";
+    private static final String TESTS_FAILED_SUMMARY = "Tests failed";
+    private static final String DEPLOYMENT_FAILED_SUMMARY = "Deployment failed";
+    private static final String DEPLOYMENT_SUCCESS_SUMMARY = "Deployment completed successfully";
+
     private final Config config;
     private final Emailer emailer;
     private final Logger log;
@@ -28,7 +33,9 @@ public class Pipeline {
             return true;
         }
 
-        if ("success".equals(project.runTests())) {
+        String testResult = project.runTests();
+        boolean testsPassed = isSuccessful(testResult);
+        if (testsPassed) {
             log.info("Tests passed");
             return true;
         }
@@ -42,7 +49,9 @@ public class Pipeline {
             return false;
         }
 
-        if ("success".equals(project.deploy())) {
+        String deploymentResult = project.deploy();
+        boolean deploymentSucceeded = isSuccessful(deploymentResult);
+        if (deploymentSucceeded) {
             log.info("Deployment successful");
             return true;
         }
@@ -58,16 +67,23 @@ public class Pipeline {
         }
 
         log.info("Sending email");
+        String summaryMessage = determineSummaryMessage(testsPassed, deploySuccessful);
+        emailer.send(summaryMessage);
+    }
+
+    private boolean isSuccessful(String result) {
+        return SUCCESS.equals(result);
+    }
+
+    private String determineSummaryMessage(boolean testsPassed, boolean deploySuccessful) {
         if (!testsPassed) {
-            emailer.send("Tests failed");
-            return;
+            return TESTS_FAILED_SUMMARY;
         }
 
-        if (deploySuccessful) {
-            emailer.send("Deployment completed successfully");
-            return;
+        if (!deploySuccessful) {
+            return DEPLOYMENT_FAILED_SUMMARY;
         }
 
-        emailer.send("Deployment failed");
+        return DEPLOYMENT_SUCCESS_SUMMARY;
     }
 }
